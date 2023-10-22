@@ -28,3 +28,228 @@ create table member
 
 # 순수 JDBC
 
+* build.gradle 파일에 jdbc, h2 데이터베이스 관련 라이브러리를 추가합니다.
+
+```java
+implementation 'org.springframework.boot:spring-boot-starter-jdbc' 
+runtimeOnly 'com.h2database:h2'
+```
+
+* db랑 연결할 때 jdbc 드라이버, db는 h2로 연결하기위한 라이브러리 추가
+* application.properties 파일내에
+
+```java
+spring.datasource.url=jdbc:h2:tcp://localhost/~/test
+spring.datasource.driver-class-name=org.h2.Driver
+```
+
+* h2 DB를 연결하기위한 url 주소를 설정합니다.
+* 기존에 MemoryMemberRepository와 연결하던 작업을 -> JdbcMemberRepostiory에서 연결을 바꿔서 작업합니다.
+  * MemberRepository를 인터페이스로 구현했기에 바꿔주기만하면 사용가능합니다.
+
+```java
+package hello.hellospring.repository;
+
+import hello.hellospring.domain.Member;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+
+import javax.sql.DataSource;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+public class JdbcMemberRepository implements MemberRepository{
+
+    private final DataSource dataSource;
+
+    public JdbcMemberRepository(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Override
+    public Member Save(Member member) {
+        String sql = "insert into member(name) values(?)";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            conn = getConnection();
+            pstmt = conn.prepareStatement(sql,
+                    Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, member.getName());
+            pstmt.executeUpdate();
+            rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                member.setId(rs.getLong(1));
+            } else {
+                throw new SQLException("id 조회 실패");
+            }
+            return member;
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public Optional<Member> findById(Long id) {
+        String sql = "select * from member where id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        ResultSet rs = null;
+        try {
+            conn = getConnection();
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setLong(1, id);
+            rs = pstmt.executeQuery();
+            if(rs.next()) {
+                Member member = new Member();
+                member.setId(rs.getLong("id"));
+                member.setName(rs.getString("name"));
+                return Optional.of(member);
+            } else {
+                return Optional.empty();
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public Optional<Member> findByName(String name) {
+        String sql = "select * from member where name = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            conn = getConnection();
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name);
+            rs = pstmt.executeQuery();
+            if(rs.next()) {
+                Member member = new Member();
+                member.setId(rs.getLong("id"));
+                member.setName(rs.getString("name"));
+                return Optional.of(member);
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public List<Member> findAll() {
+        String sql = "select * from member";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            conn = getConnection();
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
+            List<Member> members = new ArrayList<>();
+
+            while(rs.next()) {
+                Member member = new Member();
+                member.setId(rs.getLong("id"));
+                member.setName(rs.getString("name"));
+                members.add(member);
+            }
+            return members;
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(conn, pstmt, rs);
+        }
+    }
+
+    private Connection getConnection() {
+        return DataSourceUtils.getConnection(dataSource);
+    }
+
+    private void close(Connection conn, PreparedStatement pstmt, ResultSet rs)
+    {
+        try {
+            if (rs != null) {
+                rs.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        try {
+            if (pstmt != null) {
+                pstmt.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        try {
+            if (conn != null) {
+                close(conn);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    private void close(Connection conn) throws SQLException {
+        DataSourceUtils.releaseConnection(conn, dataSource);
+    }
+}
+
+```
+
+* JDBC API로 직접 코딩하는 방법은 옛날에 하던 방식 알고만 넘어가자.
+
+* DB에 연결하기위해 Connection 에서 getConnection 을 통해서 연결해줍니다.
+* prepareStatement를 통해 sql을 넣어줍니다. Statement.RETURN_GENERATE_KEYS 를 통해 DB에 insert 1,2번 id값을 얻기위함입니다.
+* value(?) 에 pstmt.setString(1, member.getName()) 을 통해 멤버 객체에 담긴 이름을 가져옵니다.
+* pstmt.executeUpdate() 를 통해 실제 쿼리를 보내줍니다.
+  * 조회할 떄는 executeQuery()를 사용합니다.
+* rs = pstmt.getGenereatedKeys(); 아이디가 자동으로 들어갈 때 꺼내기위함입니다.
+* 값이 있으면 member의 아이디를 set 해줍니다. 
+
+* 각 메서드의 맞는 sql과 DB접속에 맞는 로직을 작성한 후 기존에 SpringConfig에서 Bean 설정을 바꾸어줍니다.
+
+## SpringConfig 파일 Bean 설정 변경
+
+```java
+@Configuration
+public class SpringConfig {
+
+    private DataSource dataSource;
+
+    @Autowired
+    public SpringConfig(DataSource dataSource){
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public MemberService memberService(){
+        return new MemberService(memberRepository());
+    }
+
+    @Bean
+    public MemberRepository memberRepository(){
+//        return new MemoryMemberRepository();
+        return new JdbcMemberRepository(dataSource);
+    }
+}
+```
+
+* return new MemoryMemberRepository(); 으로 받고 있었던 설정을 DB와 연결한 JdbcMemerberRepository로 바꾸어줍니다.
+
+* ![Alt text](image-2.png)
+
+* 자바의 다형성을 이용한 interface로 구현해둔 MemberRepository에 JdbcMemberRepository를 새롭게 구현했습니다.
+
+![Alt text](image-3.png)
+
+* 기존 MemoryMemberRepository -> JdbcMemberRepository 바꾸자할 때 스프링의 DI를 활용하면 설정만으로 클래스를 변경 가능합니다.
