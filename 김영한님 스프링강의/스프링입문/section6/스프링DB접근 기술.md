@@ -246,10 +246,105 @@ public class SpringConfig {
 
 * return new MemoryMemberRepository(); 으로 받고 있었던 설정을 DB와 연결한 JdbcMemerberRepository로 바꾸어줍니다.
 
-* ![Alt text](image-2.png)
+![Alt text](image-2.png)
 
 * 자바의 다형성을 이용한 interface로 구현해둔 MemberRepository에 JdbcMemberRepository를 새롭게 구현했습니다.
 
 ![Alt text](image-3.png)
 
 * 기존 MemoryMemberRepository -> JdbcMemberRepository 바꾸자할 때 스프링의 DI를 활용하면 설정만으로 클래스를 변경 가능합니다.
+
+# 스프링 통합 테스트
+
+* 순수 자바 코드로 작성했던 테스트와 달리 DB와 통합 테스트를 진행하기위해 MemberServiceIntegrationTest 를 생성합니다.
+
+```java
+@SpringBootTest
+@Transactional
+class MemberServiceIntegrationTest {
+
+    @Autowired
+    MemberService memberService;
+    @Autowired
+    MemberRepository memberRepository;
+
+    ...
+}
+```
+
+* @SpringBootTest 스프링 컨테이너와 테스트를 함께 실행합니다.
+* 테스트는 다른 곳에서 가져다 쓸 것이 아니기 때문에 간편하게 @Autowired 를 통해 주입받습니다.
+* 테스트는 반복해야되나 이미 존재하는 회원으로 오류가 납니다.
+  * @Transactional 어노테이션을 테스트케이스에 달면 Test가 끝나면 Rollback 기능을 도와줍니다. (DB에 실제 데이터는 반영되지않으므로 반복 테스트 가능)
+
+## 스프링 JdbcTemplate
+
+* 순수 Jdbc와 동일한 환경설정을 하면 됩니다.
+* JdbcTemplate 와 MyBatis 와 같은 라이브러리는 JDBC API에서 본 반복 코드를 제거하나 SQL은 직접 작성해야합니다.
+* JdbcTemplate 은 실무에서도 잘 쓰이니 잘알아두자.
+
+```java
+public class JdbcTemplateMemberRepository implements MemberRepository{
+
+    private final JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private JdbcTemplateMemberRepository(DataSource dataSource){
+        jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+
+    @Override
+    public Member Save(Member member) {
+        SimpleJdbcInsert jdbcInsert = new SimpleJdbcInsert(jdbcTemplate);
+        jdbcInsert.withTableName("member").usingGeneratedKeyColumns("id");
+
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("name", member.getName());
+
+        Number key = jdbcInsert.executeAndReturnKey(new MapSqlParameterSource(parameters));
+        member.setId(key.longValue());
+        return member;
+    }
+
+    @Override
+    public Optional<Member> findById(Long id) {
+        List<Member> result = jdbcTemplate.query("select * from member where id = ?", memberRowMapper(), id);
+        return result.stream().findAny();
+    }
+
+    @Override
+    public Optional<Member> findByName(String name) {
+        List<Member> result = jdbcTemplate.query("select * from member where name = ?", memberRowMapper(), name);
+        return result.stream().findAny();
+    }
+
+    @Override
+    public List<Member> findAll() {
+        return jdbcTemplate.query("select * from member", memberRowMapper());
+    }
+
+    private RowMapper<Member> memberRowMapper(){
+        return (rs, rowNum) -> {
+            Member member = new Member();
+            member.setId(rs.getLong("id"));
+            member.setName(rs.getString("name"));
+            return member;
+        };
+    }
+}
+```
+
+* 생성자가 하나면 스프링이 @Autowired 해주기 때문에 생략 가능합니다.
+* spring이 datasource 를 자동으로 injection 해줍니다.
+* 사용법은 JdbcTemplate 문서를 참고하자.
+
+```java
+@Bean
+    public MemberRepository memberRepository(){
+//        return new MemoryMemberRepository();
+//        return new JdbcMemberRepository(dataSource);
+        return new JdbcTemplateMemberRepository(dataSource);
+    }
+```
+
+* SpringConfig 파일도 JdbcTemplateMemberRepository 를 활용했기 때문에 변경해줍니다.
