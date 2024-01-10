@@ -106,3 +106,34 @@ public class RestFulController{
     ...
 }
 ```
+
+**Spring ResponseEntity 클래스**
+
+* 게시판 예제중에 반환타입을 ResponseEntity로 반환하는 예제가 많이 보여서 무엇인지 정리하고자합니다.
+* REST API를 만들 때 클라이언트와 서버 간의 통신에 필요한 정보를 제공하는 경우 ResponseEntity를 사용하면 상태 코드와 응답 헤더 및 응답 본문을 생성해서 클라이언트에 전달할 수 있습니다.
+
+> 즉, httpentity를 상속받으며, 결과 데이터와 HTTP 상태 코드, 헤더값을 모두 프론트로 넘겨줄 수 있다는 장점이 있다.
+
+* 밑의 예제를 통해서 ResponseEntity 사용법에 대해서 알아보자.
+
+```java
+// 이메일 인증번호 확인
+@PostMapping("/checkMailCode")
+public ResponseEntity<String> checkMailCode(String inputCode) {
+    try {
+
+        if (code == Integer.parseInt(inputCode)) {
+            return ResponseEntity.ok("Y");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N");
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("N");
+    }
+}
+```
+
+* 조건문을 통해 입력한 데이터의 value와 code 데이터를 비교하여 프론트인 jsp 로 Y의 결과를 보내서 사용한 예제입니다.
+* ok가 아니라 잘못된 클라이언트 요청이 들어오면 ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N") 를 통해 상태 코드 조작을 통해 사용할 수 있습니다.
+
