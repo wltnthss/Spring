@@ -58,3 +58,26 @@
 > root-context는 공유가 가능한 반면 servlet-context는 해당 컨텍스트 내에 있는 빈만 사용이 가능하다.
 >
 > servlet-context 는 컨트롤러 담당, root-context는 서비스와 레포지토리를 담당한다.
+
+**Spring Web MVC Dispatcher Servlet 동작원리**
+
+* Dispatcher Servlet을 알아보기전에 위에서 Spring servlet-context.xml, root-context.xml 설정을 알아보았는데 간략하게 알아보고 넘어가고자 합니다.
+
+* context-param을 통해 contextConfigLocation을 root-context.xml을 설정한 뒤, ContextLoaderListener 클래스를 통해 contextConfigLocation 에 등록된 root-context들을 불러온 뒤, 클라이언트의 요청을 받으면 servlet 태그에서 설정들이 실행되며 root-context와 servlet-context를 동시 실행하며 Dispatcher Servlet이 동작하게됩니다.
+
+* DispatcherServlet 은 HTTP 프로토콜로 들어오는 모든 요청을 가장 먼저 받아 적합한 컨트롤러에 보내주는 Front Controller 이다.
+
+![Alt text](image-2.png)
+
+**동작 과정**
+
+1. 클라이언트 요청을 Dispatcher Servlet이 받음.
+2. DispatcherServlet은 Controller에 대한 검색을 HandlerMapping 인터페이스에게 요청하고 정보를 반환 받습니다.
+3. DispatcherServlet은 HandlerAdapter를 통해 Controller를 호출합니다.
+4. Controller는 비즈니스 모델을 처리한 후 데이터를 HadlerAdapter에게 반환합니다.
+5. HandlerAdapter는 Model 데이터와 View 이름을 다시 DispatcherServlet에게 반환합니다.
+6. DispatcherServlet은 받은 2개의 데이터 중에서 View 이름을 가지고 ViewResolver에게 해당 View 정보를 요청합니다.
+7. ViewResolver는 응답할 View에 대한 파일을 찾아 DispatcherServlet에게 전달합니다.
+8. DispatcherServlet은 응답할 뷰의 Render를 지시하고 View는 Model 데이터를 받아 로직을 처리합니다.
+9. View는 응답 데이터를 생성해서 다시 DispatcherServlet에게 반환합니다.
+10. DispatcherServlet은 View로 받은 응답데이터를 마지막으로 클라이언트에게 응답합니다.
