@@ -137,3 +137,73 @@ public ResponseEntity<String> checkMailCode(String inputCode) {
 * 조건문을 통해 입력한 데이터의 value와 code 데이터를 비교하여 프론트인 jsp 로 Y의 결과를 보내서 사용한 예제입니다.
 * ok가 아니라 잘못된 클라이언트 요청이 들어오면 ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N") 를 통해 상태 코드 조작을 통해 사용할 수 있습니다.
 
+**Spring RedirectAttributes Interface**
+
+* RedirectAttributes 인터페이스는 스프링 3.1 버전 이 후 출시된 redirect시 데이터를 전달할 수 있는 방법이다.
+* RedirectAttributes는 크게 addAttribute 와 addFlashAttribute 두 가지가 있다.
+
+1. addAttribute 사용
+
+```java
+@RequestMapping(value="/aaa/bbb/ddd.do", method =RequestMethod.POST)
+public String insertAaaaaaaaaa(ModelMap model, RedirectAttributes rttr) throws Exception{
+    
+    String message ="등록되었습니다.";
+    rttr.addAttribute("message", message);
+     
+    return "redirect:/aaa/bbb/ccc.do";
+}
+```
+
+* addAttribute를 사용하면 String 문자열을 사용하여 데이터를 전달할 수 있다.
+
+```java
+/aaa/bbb/ccc.do?message=등록되었습니다.
+```
+
+2. addFlashAttribute 사용
+
+```java
+@RequestMapping(value="/aaa/bbb/ddd.do", method =RequestMethod.POST)
+public String insertAaaaaaaaaa(ModelMap model, RedirectAttributes rttr) throws Exception{
+    
+    String message ="등록되었습니다.";
+    rttr.addFlashAttribute("message", message);
+    
+    return "redirect:/aaa/bbb/ccc.do";
+}
+```
+
+* addFlashAttribute의 경우 post 형식으로 데이터를 전달할 수 있으며 데이터는 한번만 사용된다.(새로고침을 해도 한번만 나오기에 게시판의 경우에 유용하게 사용 가능하다.)
+* 사용할 jsp 파일에서는 EL 표현식을 써서 아래와 같이 사용 가능하다.
+
+```jsp
+${message}
+```
+
+* 또한 addFlashAttribute 는 String 뿐만 아니라 Object도 사용가능하다. Object를 사용하는 방법은 아래와 같다.
+
+```java
+@RequestMapping(value="/aaa/bbb/ddd.do", method =RequestMethod.POST)
+public String insertAaaaaaaaaa(ModelMap model, RedirectAttributes rttr) throws Exception{
+    
+    String message ="등록되었습니다.";
+    rttr.addFlashAttribute("aaaaVO", aaaaVO)
+    
+    return "redirect:/aaa/bbb/ccc.do";
+}
+
+public String aaaa(HttpServletRequest request) throws Exception{
+        
+    Map<String, ?> flashMap =RequestContextUtils.getInputFlashMap(request);
+    
+    if(flashMap!=null) {
+        
+        aaaaVO =(AaaaVO)flashMap.get("aaaaVO");
+    }
+        
+    return ".......";
+}
+```
+
+* 데이터를 받을 때는 RequestContextUtils.getInputFlashMap(request) 와 같이 사용하자. 
