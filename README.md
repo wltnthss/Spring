@@ -207,3 +207,65 @@ public String aaaa(HttpServletRequest request) throws Exception{
 ```
 
 * 데이터를 받을 때는 RequestContextUtils.getInputFlashMap(request) 와 같이 사용하자. 
+
+**MockMvc**
+
+* 호돌맨 강의를 보다가 MockMvc 란 기능을 써서 알아보고 사용하고자 합니다.
+* 기존에는 Junit5 에 있는 assert 메서드 기능으로만 테스트케이스를 진행했었는데 MovcMVc를 사용하면 HTTP 요청을 모의(Mock) 함으로써 응답을 검증할 때 테스트할 수 있습니다.
+
+* MockMvc 란?
+    * 서버의 MVC 동작을 테스트 할 수 있는 라이브러리입니다.
+    * 실제 객체와 비슷하게 사용하지만 테스트에 필요한 기능만 가지는 가짜 객체를 만들어 스프링 MVC 동작을 재현할 수 있는 클래스입니다.
+    * 주로 Controller 단위테스트에 많이 사용됩니다.
+
+* MockMvc는 크게 **세 가지 동작**을 갖습니다.
+    * **perform** 
+        * 가상의 request(요청)을 처리한다.
+        * request(요청)은 MockHttpServletRequestBuilder를 통해서 생성된다.
+    * **except**
+        * 가상의 response에 대해서 검증한다.
+        * 검증항목은 아래와 같다.
+        * handler()
+        * status()
+        * model()
+        * view()
+        * 위 메서드들은 ResultMatcher를 반환한다.
+    * **do**
+        * 테스트 과정에서 직접 처리할 일을 작성한다.
+        * 실제 동작은 ResultHandler를 사용한다.
+
+```java
+@WebMvcTest
+class PostControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    @DisplayName("/posts 요청시 Hello World 출력")
+    void test() throws Exception {
+        // expected
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Hello World"))
+                .andDo(print());
+    }
+}
+```
+
+* 추상 클래스 MockMvcRequestBuilders 에서 사용하는 MockHttpServletRequestBuilder 를 사용하여 get을 통해 지정한 URI로 요청을 보냅니다.
+* assertThat 사용법과 유사하게 특정 결과가 나타나도록 MockMvcResultMatchers 에서 사용하는 andExpect 를 사용하여 status와 content 를 검증합니다.
+* andDo 를 통해 Get 요청의 결과를 콘솔에 출력합니다.
+* 위와 같이 사용했을 때 테스트 결과는 아래와 같이 나옵니다.
+
+```java
+MockHttpServletResponse:
+           Status = 200
+    Error message = null
+          Headers = [Content-Type:"text/plain;charset=UTF-8", Content-Length:"11"]
+     Content type = text/plain;charset=UTF-8
+             Body = Hello World
+    Forwarded URL = null
+   Redirected URL = null
+          Cookies = []
+```
