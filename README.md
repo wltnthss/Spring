@@ -269,3 +269,63 @@ MockHttpServletResponse:
    Redirected URL = null
           Cookies = []
 ```
+
+**BindingResult**
+
+* BindingResult는 Error를 상속받은 데이터 검증을 하기위한 인터페이스입니다.
+* 주사용법은 Error interface안에 hasErrors() 메서드를 사용하여 검증합니다.
+* 아래 코드 예시를 통해 알아보겠습니다.
+
+```java
+@PostMapping("/posts")
+    public Map<String, String> post(@RequestBody @Valid PostCreate params, BindingResult result) throws Exception {
+
+        if(result.hasErrors()){
+            var fieldErrors = result.getFieldErrors();
+            FieldError firstFieldErrors = fieldErrors.get(0);
+            String fieldName = firstFieldErrors.getField(); // title
+            String errorMsg = firstFieldErrors.getDefaultMessage(); // 에러메시지
+
+            Map<String, String> error = new HashMap<>();
+            error.put(fieldName, errorMsg);
+            return error;
+        }
+        return Map.of();
+
+    }
+```
+
+* 테스트케이스에서 에러가 발생하면 BindingResult 로 인해 spring 내에서 400에러가 발생합니다.
+* result.hasErros 를 통해 에러가 존재한다면 모든 에러를 List형식으로 fieldErrors 변수에 담습니다.
+* FieldError 클래스를 통해 첫번째 값을 꺼내와 firstFieldErrors 변수에 담습니다.
+* firstFieldErrors 변수를 통해 Field와 DefaultMessage를 통해 Map에 담아 error를 반환합니다.
+
+**Map.of()**
+
+* Map.of() 는 자바 9부터 사용할 수 있는 key와 value를 최대 10개까지 넣을 수 있는 메서드를 지원합니다.
+* unmodifiable map 을 리턴하며 맵 데이터를 초기화하는 경우에 간단하게 작성 가능합니다.
+
+```java
+Map<Integer, String> map = Map.of(1, "first", 2, "second");
+
+map.forEach((k,v) -> System.out.println(k + " - " + v));
+```
+
+* 위와 같이 작성하면 put 메서드 사용할 필요 없이 간단하게 작성가능하나 Map.of 에는 단점이 존재합니다.
+
+1. 10개의 개수 제한
+
+```java
+static <K, V> Map<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5,
+                            K k6, V v6, K k7, V v7, K k8, V v8, K k9, V v9, K k10, V v10) {
+    return new ImmutableCollections.MapN<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5,
+                                            k6, v6, k7, v7, k8, v8, k9, v9, k10, v10);
+}
+```
+
+* Map 인터페이스내에 Map.of 는 인자의 개수에 맞추어 오버로딩하고 있기 때문에 10개가 넘어가는 데이터에 추가할 경우 에러를 발생시킵니다.
+
+2. Immutable 객체 반환
+
+* Map.of() 나 Map.ofEntries() 를 통해 객체를 초기화할 때는 Immutable 객체를 반환합니다.
+* 초기화가 되고 난 이후 put이나 remove를 통해 객체의 데이터를 변경시킬 수 없습니다.
